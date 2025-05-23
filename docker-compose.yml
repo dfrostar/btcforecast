@@ -1,0 +1,7 @@
+version: '3.8'
+services:
+  btc4cast:
+    build: .
+    ports:
+      - "8501:8501"
+    restart: always 

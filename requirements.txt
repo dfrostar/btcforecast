@@ -1,0 +1,13 @@
+streamlit
+pandas
+numpy==1.23.5
+requests
+ta
+scikit-learn
+tensorflow
+matplotlib
+plotly
+yfinance
+smolagents
+transformers # for future sentiment analysis 
+shap 
