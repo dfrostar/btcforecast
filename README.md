@@ -1,11 +1,29 @@
-# BTC4Cast: Bitcoin Forecasting Web App
+# BTCForecast
 
-## Quick Start (Local)
+AI-powered Bitcoin price forecasting app using Streamlit, TensorFlow, and technical indicators.
+
+## Features
+- Deep learning (Bi-LSTM + Attention)
+- Technical indicators: RSI, MACD, Bollinger Bands, OBV, Ichimoku Cloud
+- Sentiment and on-chain data support
+- Interactive charts and backtesting
+
+## Quick Start
 
 ```bash
-pip install -r requirements.txt
-streamlit run app.py
+docker-compose up --build
 ```
+
+Then visit [http://localhost:8501](http://localhost:8501)
+
+## Development
+
+- Python 3.11 recommended
+- See `requirements.txt` for dependencies
+
+## License
+
+MIT
 
 ## Production Deployment (Docker)
 
