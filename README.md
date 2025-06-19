@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # BTCForecast
 
 AI-powered Bitcoin price forecasting app using Streamlit, TensorFlow, and technical indicators.
@@ -79,3 +80,6 @@ MIT
 ---
 
 **Contact:** For help, open an issue or contact the maintainer. 
+=======
+# btcforecast
+>>>>>>> e761f3b3838bab903280ef5cbc7cc9f91bb423f2
