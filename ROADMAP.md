@@ -29,6 +29,12 @@
 - Updated documentation to recommend Conda as the primary setup method.
 - Pip/requirements.txt is now secondary and for advanced/non-Conda users only.
 
+## [2025-06-24] API Compatibility Fix & Documentation
+- Resolved numpy/pandas_ta compatibility issue for Python 3.12+ with monkey patch in feature_engineering.py
+- API now starts successfully without import errors
+- Updated CODE_INDEX.md with compatibility patch documentation
+- All dependencies working correctly with Conda environment
+
 ## References
 - [Code Index](CODE_INDEX.md)
 - [Document Index](DOCUMENT_INDEX.md)

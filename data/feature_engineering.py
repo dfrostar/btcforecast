@@ -1,5 +1,15 @@
 import pandas as pd
 import numpy as np
+
+# Monkey patch for pandas_ta numpy compatibility issue
+# This fixes the ImportError: cannot import name 'NaN' from 'numpy'
+import sys
+if 'pandas_ta' not in sys.modules:
+    # Patch numpy before pandas_ta imports it
+    import numpy
+    if not hasattr(numpy, 'NaN'):
+        numpy.NaN = numpy.nan
+
 import pandas_ta as ta
 
 def add_technical_indicators(df):

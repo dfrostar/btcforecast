@@ -11,7 +11,7 @@ This document provides a structured, maintainable index of all major code, scrip
 
 ## Data
 - `data/data_loader.py` — Loads and preprocesses BTC data. Key: `load_btc_data()`
-- `data/feature_engineering.py` — Adds technical indicators to data. Key: `add_technical_indicators()`
+- `data/feature_engineering.py` — Adds technical indicators to data. Key: `add_technical_indicators()`. **Note:** Contains numpy/pandas_ta compatibility patch for Python 3.12+.
 - `data/__init__.py` — Data package initializer.
 
 ## Models
@@ -63,4 +63,4 @@ This document provides a structured, maintainable index of all major code, scrip
 
 ---
 
-_Last updated: 2025-06-24_ 
+_Last updated: 2025-06-24 (Added numpy/pandas_ta compatibility patch)_ 
