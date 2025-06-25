@@ -59,6 +59,7 @@ This document provides a structured, maintainable index of all major code, scrip
 - `DASHBOARD_GUIDE.md` — **NEW:** Comprehensive dashboard user guide with feature explanations and workflows.
 - `IMPROVEMENTS.md` — **NEW:** Detailed documentation of recent improvements and enhancements.
 - `CURSOR_GLOBAL_RULES.md` — **NEW:** Comprehensive global rules for Cursor to maintain CODE_INDEX.md and project organization standards.
+- `CURSOR_SETUP_GUIDE.md` — **NEW:** Step-by-step guide for setting up and using global rules in Cursor.
 
 ---
 
