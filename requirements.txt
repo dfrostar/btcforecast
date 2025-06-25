@@ -4,13 +4,12 @@ python-multipart
 python-decouple
 requests
 pandas
-scikit-learn
+scikit-learn>=1.4.2,<1.5.0
 joblib
 yfinance
 streamlit
 streamlit-option-menu
 numpy==1.24.4
-pandas_ta==0.3.14b0
 plotly
 Jinja2
 protobuf

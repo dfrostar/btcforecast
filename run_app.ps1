@@ -167,12 +167,12 @@ if ($plotFiles.Count -gt 0) {
     Write-Host "\n📊 Training Visualizations:" -ForegroundColor Cyan
     foreach ($plot in $plotFiles) {
         $sizeKB = [math]::Round($plot.Length / 1KB, 1)
-        Write-Host "   📈 $($plot.Name) ($sizeKB KB)" -ForegroundColor Green
+        Write-Host "   [PLOT] $($plot.Name) ($sizeKB KB)" -ForegroundColor Green
     }
 }
 
-Write-Host "\n🎯 Application is ready! Open http://localhost:8501 in your browser." -ForegroundColor Green
-Write-Host "💡 Press Ctrl+C to stop the application when you're done." -ForegroundColor Yellow
+Write-Host "\n[READY] Application is ready! Open http://localhost:8501 in your browser." -ForegroundColor Green
+Write-Host "[TIP] Press Ctrl+C to stop the application when you're done." -ForegroundColor Yellow
 
 # 11. Keep the script running and monitor the jobs
 try {
@@ -194,7 +194,7 @@ try {
     }
 }
 catch {
-    Write-Host "\n🛑 Application stopped by user" -ForegroundColor Yellow
+    Write-Host "\n[STOP] Application stopped by user" -ForegroundColor Yellow
 }
 finally {
     # Clean up jobs

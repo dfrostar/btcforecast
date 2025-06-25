@@ -2,8 +2,9 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 import pandas as pd
@@ -23,10 +24,36 @@ from models.bilstm_attention import (
     recursive_forecast,
     train_feature_forecasting_model
 )
+from monitoring import get_health_monitor
+from config import get_config
 
 # --- Logging Configuration ---
 logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(name)s:%(message)s')
 logger = logging.getLogger("api.main")
+
+# --- Configuration ---
+config = get_config()
+health_monitor = get_health_monitor()
+
+# --- Middleware for Request Monitoring ---
+class MonitoringMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        start_time = time.time()
+        
+        # Process request
+        response = await call_next(request)
+        
+        # Calculate response time
+        response_time = time.time() - start_time
+        
+        # Record metrics
+        success = 200 <= response.status_code < 400
+        health_monitor.record_request(success, response_time)
+        
+        # Add response time header
+        response.headers["X-Response-Time"] = str(response_time)
+        
+        return response
 
 # --- FastAPI App Initialization ---
 app = FastAPI(
@@ -35,7 +62,8 @@ app = FastAPI(
     version="2.0"
 )
 
-# Add CORS middleware
+# Add middleware
+app.add_middleware(MonitoringMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -85,16 +113,55 @@ async def startup_event():
     global model, scaler, features
     try:
         if os.path.exists("btc_model.pkl") and os.path.exists("btc_scaler.pkl"):
-            model = joblib.load("btc_model.pkl")
-            scaler_data = joblib.load("btc_scaler.pkl")
-            scaler = scaler_data["scaler"]
-            features = scaler_data["features"]
-            logger.info("Pre-trained model loaded successfully.")
+            # Load model with version compatibility handling
+            try:
+                model = joblib.load("btc_model.pkl")
+                scaler_data = joblib.load("btc_scaler.pkl")
+                scaler = scaler_data["scaler"]
+                features = scaler_data["features"]
+                logger.info("Pre-trained model loaded successfully.")
+                
+                # Validate model structure
+                if not hasattr(model, 'predict'):
+                    raise ValueError("Loaded model does not have predict method")
+                if scaler is None or features is None:
+                    raise ValueError("Scaler or features not properly loaded")
+                    
+                logger.info(f"Model loaded with {len(features)} features")
+                
+                # Update monitoring
+                health_monitor.update_model_status(True)
+                
+            except Exception as model_error:
+                logger.warning(f"Model loading failed due to version incompatibility: {model_error}")
+                logger.info("Attempting to retrain model...")
+                
+                # Try to retrain the model
+                try:
+                    from data.data_loader import load_btc_data
+                    df = load_btc_data(start="2020-01-01", end=None, interval="1d")
+                    if not df.empty:
+                        df_featured = add_technical_indicators(df)
+                        model, scaler, features, eval_results = train_ensemble_model(df_featured)
+                        logger.info("Model retrained successfully after compatibility issue.")
+                        
+                        # Update monitoring with accuracy
+                        health_monitor.update_model_status(True, eval_results.get('r2_score'))
+                    else:
+                        logger.warning("Could not retrain model - no data available.")
+                        health_monitor.update_model_status(False)
+                except Exception as retrain_error:
+                    logger.error(f"Model retraining failed: {retrain_error}")
+                    logger.info("API will start without a loaded model.")
+                    health_monitor.update_model_status(False)
+                    
         else:
             logger.warning("Model or scaler not found on disk. Please train the model first.")
+            health_monitor.update_model_status(False)
     except Exception as e:
         logger.error(f"Error loading model: {e}")
         logger.info("Pre-trained model not found. API will start without a loaded model.")
+        health_monitor.update_model_status(False)
 
 @app.get("/")
 async def root():
@@ -121,6 +188,18 @@ async def root():
 async def health_check():
     """Check if the API is running."""
     return {"status": "ok"}
+
+@app.get("/health/detailed", tags=["General"])
+async def detailed_health_check():
+    """Get detailed health status including system metrics and API performance."""
+    health_status = health_monitor.get_health_status()
+    health_monitor.save_metrics()  # Save current metrics
+    return health_status
+
+@app.get("/health/metrics", tags=["General"])
+async def get_metrics():
+    """Get API performance metrics."""
+    return health_monitor.load_metrics()
 
 @app.post("/train", response_model=TrainResponse, tags=["Model"])
 async def train_model_endpoint(request: TrainingRequest = TrainingRequest()):
@@ -160,6 +239,9 @@ async def train_model_endpoint(request: TrainingRequest = TrainingRequest()):
         
         # Store current data for forecasting
         current_data = df_featured
+        
+        # Update monitoring with model status and accuracy
+        health_monitor.update_model_status(True, eval_results.get('r2_score'))
         
         end_time = time.time()
         training_time = round(end_time - start_time, 2)

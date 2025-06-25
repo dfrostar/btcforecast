@@ -6,12 +6,12 @@ This document provides a structured, maintainable index of all major code, scrip
 ---
 
 ## API
-- `api/main.py` — FastAPI app entrypoint, defines REST endpoints for forecasting, training, evaluation, and health checks. Integrates data loading, feature engineering, and model operations.
+- `api/main.py` — FastAPI app entrypoint, defines REST endpoints for forecasting, training, evaluation, and health checks. Integrates data loading, feature engineering, and model operations. **Enhanced with monitoring and health checks.**
 - `api/__init__.py` — API package initializer.
 
 ## Data
 - `data/data_loader.py` — Loads and preprocesses BTC data. Key: `load_btc_data()`
-- `data/feature_engineering.py` — Adds technical indicators to data. Key: `add_technical_indicators()`. **Note:** Contains numpy/pandas_ta compatibility patch for Python 3.12+.
+- `data/feature_engineering.py` — Adds technical indicators to data using native pandas/numpy. Key: `add_technical_indicators()`. **Note:** Windows-compatible implementation without pandas_ta dependency.
 - `data/__init__.py` — Data package initializer.
 
 ## Models
@@ -24,11 +24,16 @@ This document provides a structured, maintainable index of all major code, scrip
 - `test_training.py` — Test script for training pipeline.
 
 ## Application & Automation
-- `app.py` — Streamlit frontend dashboard.
-- `run_app.ps1` — PowerShell script to start the app with environment checks.
+- `app.py` — Streamlit frontend dashboard. **Enhanced with improved UI and functionality.**
+- `run_app.ps1` — PowerShell script to start the app with environment checks. **Enhanced with better error handling.**
 - `run_enhanced_training.ps1` — PowerShell script for enhanced training.
+- `restart_app.ps1` — **NEW:** Enhanced PowerShell script for restarting the API with port management and process cleanup.
 - `agent_runner.py` — Entry point for agentic automation.
 - `download_btc_history.py` — Script to download historical BTC data.
+
+## Configuration & Monitoring
+- `config.py` — **NEW:** Centralized configuration management system with environment variable support. Key: `get_config()`, `update_config()`.
+- `monitoring.py` — **NEW:** Health monitoring and metrics collection system. Key: `HealthMonitor`, `get_health_monitor()`.
 
 ## Data, Models, and Outputs
 - `btc_model.h5`, `btc_model.pkl` — Trained model files.
@@ -43,14 +48,16 @@ This document provides a structured, maintainable index of all major code, scrip
 
 ## Configuration & Environment
 - `environment.yml` — Conda environment specification (primary method).
-- `requirements.txt` — Pip dependencies (secondary/legacy).
+- `requirements.txt` — Pip dependencies (secondary/legacy). **Updated with Windows compatibility fixes.**
 - `docker-compose.yml`, `Dockerfile` — Containerization configs.
 
 ## Documentation
 - `README.md` — Main project overview and setup.
-- `ROADMAP.md` — Project roadmap and milestones.
-- `DOCUMENT_INDEX.md` — Index of all documentation files.
+- `ROADMAP.md` — Project roadmap and milestones. **Updated with recent improvements.**
+- `DOCUMENT_INDEX.md` — Index of all documentation files. **Updated with new documentation.**
 - `RECURSIVE_FORECASTING.md` — Technical details on recursive forecasting.
+- `DASHBOARD_GUIDE.md` — **NEW:** Comprehensive dashboard user guide with feature explanations and workflows.
+- `IMPROVEMENTS.md` — **NEW:** Detailed documentation of recent improvements and enhancements.
 
 ---
 
@@ -63,4 +70,4 @@ This document provides a structured, maintainable index of all major code, scrip
 
 ---
 
-_Last updated: 2025-06-24 (Added numpy/pandas_ta compatibility patch)_ 
+_Last updated: 2025-06-25 (Added new configuration, monitoring, and documentation files)_ 
