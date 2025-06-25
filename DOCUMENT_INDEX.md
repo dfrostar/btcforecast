@@ -29,6 +29,7 @@ This index provides quick access to all documentation files in the BTC Forecasti
 
 ### **Development & Architecture**
 - `CODE_INDEX.md` — Code organization and file structure
+- `CURSOR_GLOBAL_RULES.md` — **NEW** - Comprehensive global rules for Cursor to maintain project organization standards
 - `config.py` — **NEW** - Configuration management system
 - `monitoring.py` — **NEW** - Health monitoring and metrics system
 
