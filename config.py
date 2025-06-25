@@ -50,6 +50,11 @@ class AppConfig:
     data: DataConfig = field(default_factory=DataConfig)
     features: FeatureConfig = field(default_factory=FeatureConfig)
     
+    # Additional configuration properties
+    enable_docs: bool = True
+    cors_origins: list = field(default_factory=lambda: ["*"])
+    jwt_secret_key: str = "your-secret-key-change-in-production"
+    
     # Environment-based overrides
     def __post_init__(self):
         # Override with environment variables if present
@@ -59,8 +64,25 @@ class AppConfig:
         
         self.model.retrain_on_startup = os.getenv("RETRAIN_ON_STARTUP", "false").lower() == "true"
         
+        # Override additional properties
+        self.enable_docs = os.getenv("ENABLE_DOCS", "true").lower() == "true"
+        self.jwt_secret_key = os.getenv("JWT_SECRET_KEY", self.jwt_secret_key)
+        
+        # Parse CORS origins from environment
+        cors_env = os.getenv("CORS_ORIGINS", "*")
+        if cors_env == "*":
+            self.cors_origins = ["*"]
+        else:
+            self.cors_origins = [origin.strip() for origin in cors_env.split(",")]
+        
         # Create cache directory if it doesn't exist
         Path(self.data.cache_dir).mkdir(exist_ok=True)
+    
+    def get(self, key: str, default=None):
+        """Dictionary-like access for backward compatibility"""
+        if hasattr(self, key):
+            return getattr(self, key)
+        return default
 
 # Global configuration instance
 config = AppConfig()

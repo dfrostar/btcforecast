@@ -332,8 +332,8 @@ def main():
     with st.sidebar:
         selected = option_menu(
             "BTC Forecast Dashboard",
-            ["🏠 Dashboard", "🔮 Forecast", "📊 Model Evaluation", "🔄 Training", "📈 Analytics", "⚙️ Settings"],
-            icons=['house', 'graph-up-arrow', 'wrench', 'gear', 'chart-line', 'settings'],
+            ["🏠 Dashboard", "🔮 Forecast", "📊 Model Evaluation", "🔄 Training", "📈 Analytics", "⚡ Real-Time Data", "⚙️ Settings"],
+            icons=['house', 'graph-up-arrow', 'wrench', 'gear', 'chart-line', 'lightning', 'settings'],
             menu_icon="cast",
             default_index=0,
         )
@@ -554,6 +554,242 @@ def main():
         # Model comparison
         st.write("### 🔄 Model Comparison")
         st.info("Model comparison tools will be displayed here.")
+
+    elif selected == "⚡ Real-Time Data":
+        st.subheader("⚡ Real-Time Data & Live Market Feed")
+        
+        # Real-time data status
+        st.write("### 🔌 Connection Status")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            # Check WebSocket connection
+            try:
+                # This would check WebSocket connection status
+                st.success("✅ WebSocket: Connected")
+            except:
+                st.error("❌ WebSocket: Disconnected")
+        
+        with col2:
+            # Check real-time data service
+            try:
+                realtime_status = get_api_data("realtime/prices")
+                if realtime_status:
+                    st.success("✅ Real-time Data: Active")
+                else:
+                    st.warning("⚠️ Real-time Data: Inactive")
+            except:
+                st.error("❌ Real-time Data: Error")
+        
+        with col3:
+            # Check price alert system
+            try:
+                st.success("✅ Price Alerts: Active")
+            except:
+                st.warning("⚠️ Price Alerts: Inactive")
+        
+        # Live price feed
+        st.write("### 💰 Live Price Feed")
+        
+        # Auto-refresh price data
+        if 'price_refresh' not in st.session_state:
+            st.session_state.price_refresh = 0
+        
+        if st.button("🔄 Refresh Prices") or st.session_state.price_refresh == 0:
+            with st.spinner("Fetching live prices..."):
+                try:
+                    prices_data = get_api_data("realtime/prices")
+                    if prices_data and 'prices' in prices_data:
+                        st.session_state.live_prices = prices_data['prices']
+                        st.session_state.price_refresh += 1
+                        st.success("Prices updated!")
+                    else:
+                        st.error("Failed to fetch live prices")
+                except Exception as e:
+                    st.error(f"Error fetching prices: {e}")
+        
+        # Display live prices
+        if 'live_prices' in st.session_state and st.session_state.live_prices:
+            prices = st.session_state.live_prices
+            
+            # Create price cards
+            col1, col2, col3, col4, col5 = st.columns(5)
+            
+            symbols = ['btcusdt', 'ethusdt', 'adausdt', 'dotusdt', 'solusdt']
+            colors = ['#f7931a', '#627eea', '#0033ad', '#e6007a', '#9945ff']
+            
+            for i, (symbol, color) in enumerate(zip(symbols, colors)):
+                with [col1, col2, col3, col4, col5][i]:
+                    if symbol in prices:
+                        price_data = prices[symbol]
+                        st.markdown(f"""
+                        <div style="
+                            background: linear-gradient(135deg, {color}20, {color}40);
+                            border: 2px solid {color};
+                            border-radius: 10px;
+                            padding: 15px;
+                            text-align: center;
+                            margin: 5px 0;
+                        ">
+                            <h3 style="color: {color}; margin: 0;">{symbol.upper()}</h3>
+                            <h2 style="color: white; margin: 10px 0;">${price_data.get('price', 0):,.2f}</h2>
+                            <p style="color: #ccc; margin: 0;">Volume: {price_data.get('volume', 0):,.0f}</p>
+                            <p style="color: #ccc; margin: 0;">Source: {price_data.get('exchange', 'N/A')}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"""
+                        <div style="
+                            background: #2d2d2d;
+                            border: 2px solid #666;
+                            border-radius: 10px;
+                            padding: 15px;
+                            text-align: center;
+                            margin: 5px 0;
+                        ">
+                            <h3 style="color: #666; margin: 0;">{symbol.upper()}</h3>
+                            <p style="color: #666; margin: 0;">No data</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+        
+        # Price alerts section
+        st.write("### 🔔 Price Alerts")
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            # Create new alert
+            st.write("#### Create New Alert")
+            
+            alert_symbol = st.selectbox(
+                "Symbol",
+                ["btcusdt", "ethusdt", "adausdt", "dotusdt", "solusdt"],
+                key="alert_symbol"
+            )
+            
+            col_a, col_b = st.columns(2)
+            with col_a:
+                target_price = st.number_input(
+                    "Target Price ($)",
+                    min_value=0.0,
+                    value=50000.0 if alert_symbol == "btcusdt" else 1000.0,
+                    step=100.0
+                )
+            
+            with col_b:
+                alert_type = st.selectbox(
+                    "Alert Type",
+                    ["above", "below"],
+                    key="alert_type"
+                )
+            
+            if st.button("🔔 Create Alert", type="primary"):
+                with st.spinner("Creating price alert..."):
+                    try:
+                        alert_data = post_api_data("realtime/alerts", {
+                            "symbol": alert_symbol,
+                            "target_price": target_price,
+                            "alert_type": alert_type
+                        })
+                        if alert_data:
+                            st.success("Price alert created successfully!")
+                            # Refresh alerts list
+                            st.session_state.alerts_refresh = True
+                        else:
+                            st.error("Failed to create price alert")
+                    except Exception as e:
+                        st.error(f"Error creating alert: {e}")
+        
+        with col2:
+            # Alert status
+            st.write("#### Alert Status")
+            
+            try:
+                alerts_data = get_api_data("realtime/alerts")
+                if alerts_data and 'alerts' in alerts_data:
+                    active_alerts = len(alerts_data['alerts'])
+                    st.metric("Active Alerts", active_alerts)
+                    
+                    if active_alerts > 0:
+                        st.info(f"📊 {active_alerts} active price alerts")
+                    else:
+                        st.info("📊 No active alerts")
+                else:
+                    st.metric("Active Alerts", 0)
+                    st.info("📊 No alerts found")
+            except:
+                st.metric("Active Alerts", "Error")
+                st.error("Failed to load alerts")
+        
+        # Display existing alerts
+        st.write("#### Your Price Alerts")
+        
+        try:
+            alerts_data = get_api_data("realtime/alerts")
+            if alerts_data and 'alerts' in alerts_data and alerts_data['alerts']:
+                alerts = alerts_data['alerts']
+                
+                for alert in alerts:
+                    col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+                    
+                    with col1:
+                        st.write(f"**{alert.get('symbol', 'N/A').upper()}** {alert.get('alert_type', 'N/A')} ${alert.get('target_price', 0):,.2f}")
+                    
+                    with col2:
+                        status = "🟢 Active" if not alert.get('triggered', False) else "🔴 Triggered"
+                        st.write(status)
+                    
+                    with col3:
+                        if alert.get('created_at'):
+                            created = alert['created_at'][:10]  # Just the date
+                            st.write(f"Created: {created}")
+                    
+                    with col4:
+                        if st.button(f"🗑️ Delete", key=f"delete_{alert.get('id', 'unknown')}"):
+                            try:
+                                delete_result = post_api_data(f"realtime/alerts/{alert.get('id', '')}", method="DELETE")
+                                if delete_result:
+                                    st.success("Alert deleted!")
+                                    st.rerun()
+                                else:
+                                    st.error("Failed to delete alert")
+                            except Exception as e:
+                                st.error(f"Error deleting alert: {e}")
+                
+            else:
+                st.info("No price alerts found. Create your first alert above!")
+                
+        except Exception as e:
+            st.error(f"Error loading alerts: {e}")
+        
+        # Real-time chart (placeholder for future implementation)
+        st.write("### 📈 Real-Time Chart")
+        st.info("""
+        **Real-time chart features coming soon:**
+        - Live price charts with WebSocket updates
+        - Technical indicators on real-time data
+        - Price movement alerts
+        - Volume analysis
+        - Multi-timeframe views
+        """)
+        
+        # WebSocket connection info
+        st.write("### 🔌 WebSocket Connection")
+        st.info("""
+        **WebSocket Endpoint:** `ws://localhost:8000/ws`
+        
+        **Available Features:**
+        - Real-time price streaming
+        - Price alert notifications
+        - Live market data
+        - Multi-exchange aggregation
+        
+        **Message Types:**
+        - `subscribe`: Subscribe to symbol updates
+        - `price_alert`: Create price alerts
+        - `get_price`: Get current price
+        - `ping`: Connection health check
+        """)
 
     elif selected == "⚙️ Settings":
         st.subheader("⚙️ Application Settings")

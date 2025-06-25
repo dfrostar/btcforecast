@@ -23,4 +23,26 @@ matplotlib
 seaborn
 tqdm
 psutil
+
+# Security and Authentication
+PyJWT>=2.8.0
+bcrypt>=4.0.1
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.6
+
+# Database and ORM
+sqlalchemy>=2.0.0
+alembic>=1.12.0
+
+# Additional utilities
+python-dateutil>=2.8.2
+pydantic[email]>=2.0.0
+email-validator>=2.0.0
+
+# Real-time Data Integration (Competitive Edge Feature)
+websockets>=11.0.3
+aiohttp>=3.8.0
+asyncio-mqtt>=0.16.1
+
 # Add other core dependencies below as needed 
