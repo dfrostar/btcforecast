@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # BTCForecast
 
 AI-powered Bitcoin price forecasting app using Streamlit, TensorFlow, and technical indicators.
@@ -21,6 +20,22 @@ Then visit [http://localhost:8501](http://localhost:8501)
 
 - Python 3.11 recommended
 - See `requirements.txt` for dependencies
+
+## Conda Environment Setup (Recommended)
+
+1. Install [Miniconda](https://docs.conda.io/en/latest/miniconda.html) or [Anaconda](https://www.anaconda.com/products/distribution).
+2. Create the environment:
+   ```sh
+   conda env create -f environment.yml
+   conda activate btcforecast
+   ```
+3. To update the environment:
+   ```sh
+   conda env update -f environment.yml --prune
+   ```
+4. Run the app or training scripts as usual.
+
+> **Note:** The use of `requirements.txt` and pip is only for advanced users or non-Conda environments. The project is tested and supported with Conda as the primary method.
 
 ## License
 
@@ -77,9 +92,14 @@ MIT
 - Edit `app.py` for UI or model changes.
 - Edit `train_agent.py` for automated retraining.
 
+## Code & Documentation Indexing
+- See [CODE_INDEX.md](./CODE_INDEX.md) for a structured index of all code, scripts, and their purposes.
+- See [DOCUMENT_INDEX.md](./DOCUMENT_INDEX.md) for all user and developer documentation.
+
+**Best Practice:**
+- Always update CODE_INDEX.md with every PR that adds, removes, or refactors files.
+- Use the code index for navigation, onboarding, and as a checklist during code reviews.
+
 ---
 
 **Contact:** For help, open an issue or contact the maintainer. 
-=======
-# btcforecast
->>>>>>> e761f3b3838bab903280ef5cbc7cc9f91bb423f2

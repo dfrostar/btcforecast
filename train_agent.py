@@ -4,6 +4,7 @@ from model import train_model, forecast_future, save_model_and_scaler, add_senti
 import ta
 from sklearn.metrics import mean_absolute_error
 import os
+import time
 
 # --- Parameters ---
 LOOKBACK = 30
@@ -61,8 +62,9 @@ if __name__ == '__main__':
     split_idx = int(len(train_df) * 0.9)
     train_data = train_df.iloc[:split_idx]
     val_data = train_df.iloc[split_idx - LOOKBACK:]
-    print('Training model...')
-    model, scaler, history = train_model(train_data, feature_cols, lookback=LOOKBACK, epochs=EPOCHS, batch_size=BATCH_SIZE)
+    print('[STATUS] Training model...')
+    model, scaler, history = train_model(train_data, feature_cols, lookback=LOOKBACK, epochs=EPOCHS, batch_size=BATCH_SIZE, log_csv_path='training_metrics.csv')
+    print('[STATUS] Training finished. Evaluating...')
     X_val, y_val, _ = train_model.prepare_data(val_data, feature_cols, lookback=LOOKBACK)
     y_pred = model.predict(X_val).flatten()
     dummy = np.zeros((len(y_pred), len(feature_cols) + 1))

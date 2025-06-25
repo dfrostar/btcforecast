@@ -1,13 +1,27 @@
-streamlit
-pandas
-numpy==1.23.5
+fastapi
+uvicorn
+python-multipart
+python-decouple
 requests
-ta
+pandas
 scikit-learn
-tensorflow
-matplotlib
-plotly
+joblib
 yfinance
-smolagents
-transformers # for future sentiment analysis 
-shap 
+streamlit
+streamlit-option-menu
+numpy==1.24.4
+pandas_ta==0.3.14b0
+plotly
+Jinja2
+protobuf
+toml
+MarkupSafe==2.1.5
+setuptools
+# Enhanced monitoring and visualization packages
+tensorflow>=2.10.0
+ta
+matplotlib
+seaborn
+tqdm
+psutil
+# Add other core dependencies below as needed 

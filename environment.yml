@@ -1,0 +1,29 @@
+name: btcforecast
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - numpy=1.24.4
+  - pandas
+  - pandas-ta=0.3.14b0
+  - yfinance
+  - scikit-learn
+  - fastapi
+  - uvicorn
+  - streamlit
+  - matplotlib
+  - seaborn
+  - pip
+  - pip:
+      - streamlit-option-menu
+      - python-multipart
+      - python-decouple
+      - requests
+      - joblib
+      - plotly
+      - Jinja2
+      - protobuf
+      - toml
+      - MarkupSafe==2.1.5
+      - tqdm
+      - psutil 

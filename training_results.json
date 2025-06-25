@@ -1,0 +1,22 @@
+{
+  "timestamp": "2025-06-23T20:30:04.654174",
+  "duration_seconds": 20.303495168685913,
+  "mae": 9565.794949616147,
+  "mse": 123946990.88351473,
+  "rmse": 11133.148291634076,
+  "r2": 0.5748353804932219,
+  "epochs": 20,
+  "lookback": 30,
+  "batch_size": 32,
+  "indicators": [
+    "RSI",
+    "MACD",
+    "Bollinger Bands",
+    "OBV",
+    "Ichimoku Cloud"
+  ],
+  "initial_cpu_percent": 33.9,
+  "final_cpu_percent": 41.3,
+  "initial_memory_percent": 71.2,
+  "final_memory_percent": 71.5
+}

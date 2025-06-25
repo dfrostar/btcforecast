@@ -1,0 +1,2 @@
+timestamp,duration_seconds,mae,mse,rmse,r2,epochs,lookback,batch_size,indicators,initial_cpu_percent,final_cpu_percent,initial_memory_percent,final_memory_percent
+2025-06-23T20:30:04.654174,20.303495168685913,9565.794949616147,123946990.88351473,11133.148291634076,0.5748353804932219,20,30,32,"['RSI', 'MACD', 'Bollinger Bands', 'OBV', 'Ichimoku Cloud']",33.9,41.3,71.2,71.5
