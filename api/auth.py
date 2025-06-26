@@ -62,13 +62,22 @@ def generate_api_key() -> str:
     return ''.join(secrets.choice(alphabet) for _ in range(32))
 
 def hash_password(password: str) -> str:
-    """Hash a password using bcrypt."""
-    salt = bcrypt.gensalt()
+    """Hash a password using bcrypt with production-grade security."""
+    # Use higher salt rounds for production security (12 is recommended)
+    salt_rounds = 12
+    salt = bcrypt.gensalt(rounds=salt_rounds)
     return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
 def verify_password(password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash."""
-    return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
+    """Verify a password against its hash with proper error handling."""
+    try:
+        return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception as e:
+        # Log the error but don't expose it to the user
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Password verification error: {e}")
+        return False
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Create a JWT access token."""

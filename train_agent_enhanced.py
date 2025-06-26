@@ -17,7 +17,7 @@ Date: 2024
 
 import pandas as pd
 import numpy as np
-from model import train_model, forecast_future, save_model_and_scaler, add_sentiment_feature
+from model import train_model, forecast_future, save_model_and_scaler, add_sentiment_feature, calculate_directional_accuracy
 import ta
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import os
@@ -332,8 +332,8 @@ def train_with_monitoring():
         mse = mean_squared_error(y_val_inv, y_pred_inv)
         rmse = np.sqrt(mse)
         r2 = r2_score(y_val_inv, y_pred_inv)
-        
-        logging.info(f"Validation Metrics - MAE: {mae:.2f}, MSE: {mse:.2f}, RMSE: {rmse:.2f}, R²: {r2:.4f}")
+        dir_acc = calculate_directional_accuracy(y_val_inv, y_pred_inv)
+        logging.info(f"Validation Metrics - MAE: {mae:.2f}, MSE: {mse:.2f}, RMSE: {rmse:.2f}, R²: {r2:.4f}, Directional Accuracy: {dir_acc:.2%}")
         
         # Step 6: Save model and generate forecasts
         logging.info("Step 6: Saving model and generating forecasts...")
@@ -361,6 +361,7 @@ def train_with_monitoring():
             'mse': mse,
             'rmse': rmse,
             'r2': r2,
+            'directional_accuracy': dir_acc,
             'epochs': TrainingConfig.EPOCHS,
             'lookback': TrainingConfig.LOOKBACK,
             'batch_size': TrainingConfig.BATCH_SIZE,

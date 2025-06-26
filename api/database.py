@@ -35,7 +35,56 @@ class DatabaseManager:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     last_login TIMESTAMP,
                     api_key TEXT UNIQUE,
-                    subscription_expires TIMESTAMP
+                    subscription_expires TIMESTAMP,
+                    stripe_customer_id TEXT
+                )
+            ''')
+            
+            # Subscriptions table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS subscriptions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    stripe_subscription_id TEXT UNIQUE,
+                    tier_name TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    current_period_start TIMESTAMP,
+                    current_period_end TIMESTAMP,
+                    cancel_at_period_end BOOLEAN DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (id)
+                )
+            ''')
+            
+            # Usage tracking table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS usage_tracking (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    date DATE NOT NULL,
+                    api_calls INTEGER DEFAULT 0,
+                    predictions INTEGER DEFAULT 0,
+                    portfolios_count INTEGER DEFAULT 0,
+                    storage_used_mb REAL DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (id),
+                    UNIQUE(user_id, date)
+                )
+            ''')
+            
+            # Billing history table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS billing_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    stripe_invoice_id TEXT UNIQUE,
+                    amount REAL NOT NULL,
+                    currency TEXT NOT NULL DEFAULT 'USD',
+                    status TEXT NOT NULL,
+                    description TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (id)
                 )
             ''')
             
@@ -185,6 +234,13 @@ class UserRepository:
         return results[0] if results else None
     
     @staticmethod
+    def get_user_by_id(user_id: int) -> Optional[Dict]:
+        """Get user by ID."""
+        query = "SELECT * FROM users WHERE id = ?"
+        results = db_manager.execute_query(query, (user_id,))
+        return results[0] if results else None
+    
+    @staticmethod
     def update_last_login(username: str):
         """Update user's last login timestamp."""
         query = "UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE username = ?"
@@ -210,15 +266,268 @@ class UserRepository:
     
     @staticmethod
     def deactivate_user(username: str):
-        """Deactivate a user."""
+        """Deactivate a user account."""
         query = "UPDATE users SET is_active = 0 WHERE username = ?"
         db_manager.execute_update(query, (username,))
     
     @staticmethod
     def get_all_users() -> List[Dict]:
-        """Get all users (admin only)."""
-        query = "SELECT id, username, email, role, is_active, created_at, last_login FROM users"
+        """Get all users from the database."""
+        return db_manager.execute_query("SELECT * FROM users ORDER BY created_at DESC")
+    
+    @staticmethod
+    def get_user_count() -> int:
+        """Get total number of users in the database."""
+        result = db_manager.execute_query("SELECT COUNT(*) as count FROM users")
+        return result[0]['count'] if result else 0
+    
+    @staticmethod
+    def update_stripe_customer_id(user_id: int, stripe_customer_id: str):
+        """Update user's Stripe customer ID."""
+        query = "UPDATE users SET stripe_customer_id = ? WHERE id = ?"
+        db_manager.execute_update(query, (stripe_customer_id, user_id))
+
+class SubscriptionRepository:
+    """Repository for subscription-related database operations."""
+    
+    def __init__(self, db_session):
+        self.db_session = db_session
+    
+    def create_subscription(self, user_id: int, stripe_subscription_id: str, 
+                          tier_name: str, status: str, current_period_start: datetime,
+                          current_period_end: datetime, cancel_at_period_end: bool = False) -> Dict:
+        """Create a new subscription."""
+        query = '''
+            INSERT INTO subscriptions 
+            (user_id, stripe_subscription_id, tier_name, status, current_period_start, 
+             current_period_end, cancel_at_period_end)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        '''
+        db_manager.execute_update(query, (
+            user_id, stripe_subscription_id, tier_name, status, 
+            current_period_start, current_period_end, cancel_at_period_end
+        ))
+        
+        # Return the created subscription
+        return self.get_subscription_by_stripe_id(stripe_subscription_id)
+    
+    def get_active_subscription(self, user_id: int) -> Optional[Dict]:
+        """Get user's active subscription."""
+        query = '''
+            SELECT * FROM subscriptions 
+            WHERE user_id = ? AND status = 'active'
+            ORDER BY created_at DESC LIMIT 1
+        '''
+        results = db_manager.execute_query(query, (user_id,))
+        return results[0] if results else None
+    
+    def get_subscription_by_stripe_id(self, stripe_subscription_id: str) -> Optional[Dict]:
+        """Get subscription by Stripe subscription ID."""
+        query = "SELECT * FROM subscriptions WHERE stripe_subscription_id = ?"
+        results = db_manager.execute_query(query, (stripe_subscription_id,))
+        return results[0] if results else None
+    
+    def update_subscription(self, subscription_id: int, **kwargs) -> bool:
+        """Update subscription fields."""
+        set_clauses = []
+        params = []
+        
+        for key, value in kwargs.items():
+            set_clauses.append(f"{key} = ?")
+            params.append(value)
+        
+        set_clauses.append("updated_at = CURRENT_TIMESTAMP")
+        params.append(subscription_id)
+        
+        query = f"UPDATE subscriptions SET {', '.join(set_clauses)} WHERE id = ?"
+        return db_manager.execute_update(query, tuple(params)) > 0
+    
+    def update_subscription_from_stripe(self, stripe_subscription: Dict) -> bool:
+        """Update subscription from Stripe webhook data."""
+        subscription = self.get_subscription_by_stripe_id(stripe_subscription["id"])
+        if not subscription:
+            return False
+        
+        return self.update_subscription(
+            subscription["id"],
+            status=stripe_subscription["status"],
+            current_period_start=datetime.fromtimestamp(stripe_subscription["current_period_start"]),
+            current_period_end=datetime.fromtimestamp(stripe_subscription["current_period_end"]),
+            cancel_at_period_end=stripe_subscription.get("cancel_at_period_end", False)
+        )
+    
+    def cancel_subscription(self, stripe_subscription_id: str) -> bool:
+        """Cancel a subscription."""
+        return self.update_subscription_from_stripe({
+            "id": stripe_subscription_id,
+            "status": "canceled",
+            "current_period_start": int(datetime.now().timestamp()),
+            "current_period_end": int(datetime.now().timestamp()),
+            "cancel_at_period_end": True
+        })
+    
+    def get_all_subscriptions(self) -> List[Dict]:
+        """Get all subscriptions."""
+        query = "SELECT * FROM subscriptions ORDER BY created_at DESC"
         return db_manager.execute_query(query)
+    
+    def get_usage_stats(self, user_id: int) -> Dict:
+        """Get user's usage statistics."""
+        today = datetime.now().date()
+        month_start = datetime.now().replace(day=1).date()
+        
+        # Get today's usage
+        today_query = "SELECT * FROM usage_tracking WHERE user_id = ? AND date = ?"
+        today_results = db_manager.execute_query(today_query, (user_id, today))
+        today_usage = today_results[0] if today_results else {
+            "api_calls": 0,
+            "predictions": 0,
+            "portfolios_count": 0,
+            "storage_used_mb": 0
+        }
+        
+        # Get this month's usage
+        month_query = '''
+            SELECT 
+                SUM(api_calls) as api_calls,
+                SUM(predictions) as predictions,
+                MAX(portfolios_count) as portfolios_count,
+                MAX(storage_used_mb) as storage_used_mb
+            FROM usage_tracking 
+            WHERE user_id = ? AND date >= ?
+        '''
+        month_results = db_manager.execute_query(month_query, (user_id, month_start))
+        month_usage = month_results[0] if month_results else {
+            "api_calls": 0,
+            "predictions": 0,
+            "portfolios_count": 0,
+            "storage_used_mb": 0
+        }
+        
+        return {
+            "api_calls_today": today_usage.get("api_calls", 0),
+            "api_calls_this_month": month_usage.get("api_calls", 0),
+            "predictions_today": today_usage.get("predictions", 0),
+            "predictions_this_month": month_usage.get("predictions", 0),
+            "portfolios_count": today_usage.get("portfolios_count", 0),
+            "storage_used_mb": today_usage.get("storage_used_mb", 0)
+        }
+    
+    def increment_usage(self, user_id: int, usage_type: str, amount: int = 1):
+        """Increment usage statistics for a user."""
+        today = datetime.now().date()
+        
+        # Insert or update today's usage
+        query = '''
+            INSERT INTO usage_tracking (user_id, date, api_calls, predictions, portfolios_count)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(user_id, date) DO UPDATE SET
+                api_calls = api_calls + ?,
+                predictions = predictions + ?,
+                portfolios_count = portfolios_count + ?
+        '''
+        
+        if usage_type == "api_calls":
+            db_manager.execute_update(query, (user_id, today, amount, 0, 0, amount, 0, 0))
+        elif usage_type == "predictions":
+            db_manager.execute_update(query, (user_id, today, 0, amount, 0, 0, amount, 0))
+        elif usage_type == "portfolios":
+            db_manager.execute_update(query, (user_id, today, 0, 0, amount, 0, 0, amount))
+    
+    def handle_successful_payment(self, invoice: Dict):
+        """Handle successful payment from Stripe webhook."""
+        user_id = self._get_user_id_from_invoice(invoice)
+        if not user_id:
+            return
+        
+        query = '''
+            INSERT INTO billing_history 
+            (user_id, stripe_invoice_id, amount, currency, status, description)
+            VALUES (?, ?, ?, ?, ?, ?)
+        '''
+        
+        db_manager.execute_update(query, (
+            user_id,
+            invoice["id"],
+            invoice["amount_paid"] / 100,  # Convert from cents
+            invoice["currency"].upper(),
+            invoice["status"],
+            invoice.get("description", f"Invoice for {invoice.get('period_start')}")
+        ))
+    
+    def handle_failed_payment(self, invoice: Dict):
+        """Handle failed payment from Stripe webhook."""
+        user_id = self._get_user_id_from_invoice(invoice)
+        if not user_id:
+            return
+        
+        # Log failed payment
+        query = '''
+            INSERT INTO billing_history 
+            (user_id, stripe_invoice_id, amount, currency, status, description)
+            VALUES (?, ?, ?, ?, ?, ?)
+        '''
+        
+        db_manager.execute_update(query, (
+            user_id,
+            invoice["id"],
+            invoice["amount_due"] / 100,  # Convert from cents
+            invoice["currency"].upper(),
+            "failed",
+            f"Failed payment: {invoice.get('last_payment_error', {}).get('message', 'Unknown error')}"
+        ))
+    
+    def _get_user_id_from_invoice(self, invoice: Dict) -> Optional[int]:
+        """Extract user ID from Stripe invoice."""
+        subscription_id = invoice.get("subscription")
+        if not subscription_id:
+            return None
+        
+        subscription = self.get_subscription_by_stripe_id(subscription_id)
+        return subscription["user_id"] if subscription else None
+    
+    def get_subscription_stats(self) -> Dict:
+        """Get subscription statistics for admin dashboard."""
+        # Total subscriptions
+        total_query = "SELECT COUNT(*) as count FROM subscriptions"
+        total_results = db_manager.execute_query(total_query)
+        total_subscriptions = total_results[0]["count"] if total_results else 0
+        
+        # Active subscriptions
+        active_query = "SELECT COUNT(*) as count FROM subscriptions WHERE status = 'active'"
+        active_results = db_manager.execute_query(active_query)
+        active_subscriptions = active_results[0]["count"] if active_results else 0
+        
+        # Subscriptions by tier
+        tier_query = '''
+            SELECT tier_name, COUNT(*) as count 
+            FROM subscriptions 
+            WHERE status = 'active' 
+            GROUP BY tier_name
+        '''
+        tier_results = db_manager.execute_query(tier_query)
+        subscriptions_by_tier = {row["tier_name"]: row["count"] for row in tier_results}
+        
+        # Calculate churn rate (simplified)
+        churn_query = '''
+            SELECT COUNT(*) as count 
+            FROM subscriptions 
+            WHERE status = 'canceled' 
+            AND updated_at >= datetime('now', '-30 days')
+        '''
+        churn_results = db_manager.execute_query(churn_query)
+        churned_subscriptions = churn_results[0]["count"] if churn_results else 0
+        
+        churn_rate = (churned_subscriptions / max(active_subscriptions, 1)) * 100
+        
+        return {
+            "total_subscriptions": total_subscriptions,
+            "active_subscriptions": active_subscriptions,
+            "monthly_revenue": 0,  # Would need to calculate from billing history
+            "subscriptions_by_tier": subscriptions_by_tier,
+            "churn_rate": churn_rate,
+            "average_revenue_per_user": 0  # Would need to calculate from billing history
+        }
 
 class AuditRepository:
     """Repository for audit logging operations."""
@@ -429,4 +738,11 @@ def cleanup_old_data(days_to_keep: int = 90):
     # Clean up old predictions (keep more recent data)
     predictions_cutoff = datetime.now() - timedelta(days=60)
     query = "DELETE FROM predictions_log WHERE timestamp < ?"
-    db_manager.execute_update(query, (predictions_cutoff,)) 
+    db_manager.execute_update(query, (predictions_cutoff,))
+
+def get_db():
+    """Dependency for FastAPI to provide a database manager instance."""
+    try:
+        yield db_manager
+    finally:
+        pass  # No explicit close needed for db_manager 

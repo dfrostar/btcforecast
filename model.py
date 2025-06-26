@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import RobustScaler
 import joblib
 import os
 import psutil
@@ -28,7 +28,7 @@ def prepare_data(df, feature_cols, target_col='price', lookback=30, forecast_hor
     Prepare data for time series forecasting with lookback window.
     Returns X, y, scaler
     '''
-    scaler = MinMaxScaler()
+    scaler = RobustScaler()
     data = df[feature_cols + [target_col]].dropna().values
     data_scaled = scaler.fit_transform(data)
     X, y = [], []
@@ -196,3 +196,10 @@ def add_sentiment_feature(df, sentiment_series=None):
     else:
         df['sentiment'] = 0.0
     return df 
+
+# --- Directional Accuracy Metric ---
+def calculate_directional_accuracy(y_true, y_pred):
+    """Calculate the percentage of correct directional predictions."""
+    y_true_dir = np.sign(np.diff(y_true))
+    y_pred_dir = np.sign(np.diff(y_pred))
+    return np.mean(y_true_dir == y_pred_dir) 

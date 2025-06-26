@@ -1,28 +1,31 @@
-fastapi
-uvicorn
-python-multipart
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+streamlit==1.28.1
+pandas==2.1.3
+numpy==1.25.2
+scikit-learn==1.3.2
+tensorflow==2.15.0
+plotly==5.17.0
+yfinance==0.2.28
+python-multipart==0.0.6
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-dotenv==1.0.0
+requests==2.31.0
+psutil==5.9.6
 python-decouple
-requests
-pandas
-scikit-learn>=1.4.2,<1.5.0
 joblib
-yfinance
-streamlit
 streamlit-option-menu
-numpy==1.24.4
-plotly
 Jinja2
 protobuf
 toml
 MarkupSafe==2.1.5
 setuptools
 # Enhanced monitoring and visualization packages
-tensorflow>=2.10.0
 ta
 matplotlib
 seaborn
 tqdm
-psutil
 
 # Security and Authentication
 PyJWT>=2.8.0
@@ -45,4 +48,77 @@ websockets>=11.0.3
 aiohttp>=3.8.0
 asyncio-mqtt>=0.16.1
 
-# Add other core dependencies below as needed 
+# Payment Processing (Subscription Management)
+stripe>=7.0.0
+
+# Add other core dependencies below as needed
+
+# Production Database (Phase 2)
+psycopg2-binary==2.9.7
+asyncpg==0.29.0
+
+# Redis Caching (Phase 2)
+redis==4.6.0
+
+# Monitoring and Metrics (Phase 2)
+prometheus-client==0.17.1
+prometheus-fastapi-instrumentator==6.1.0
+
+# Load Testing (Phase 2)
+locust==2.17.0
+
+# Production Server
+gunicorn==21.2.0
+
+# Background Processing - Celery Integration (Phase 2)
+celery==5.3.4
+flower==2.0.1
+kombu==5.3.4
+billiard==4.2.0
+
+# Advanced Monitoring & Metrics (Phase 2)
+opentelemetry-api==1.21.0
+opentelemetry-sdk==1.21.0
+opentelemetry-instrumentation-fastapi==0.42b0
+opentelemetry-instrumentation-celery==0.42b0
+opentelemetry-exporter-jaeger==1.21.0
+opentelemetry-exporter-prometheus==1.21.0
+jaeger-client==4.8.0
+structlog==23.2.0
+
+# Advanced Security (Phase 2)
+cryptography==41.0.7
+oauthlib==3.2.2
+requests-oauthlib==1.3.1
+python-jose[cryptography]==3.3.0
+PyJWT==2.8.0
+bcrypt==4.0.1
+
+# Multi-Region & Load Balancing (Phase 2)
+haproxy==2.8.0
+nginx==1.24.0
+consul==1.16.0
+vault==1.15.0
+
+# Advanced Caching & Performance (Phase 2)
+aioredis==2.0.1
+cachetools==5.3.2
+diskcache==5.6.3
+
+# API Gateway & Rate Limiting (Phase 2)
+slowapi==0.1.9
+fastapi-limiter==0.1.5
+
+# Message Queuing (Phase 2)
+pika==1.3.2
+aio-pika==9.3.0
+
+# Configuration Management (Phase 2)
+dynaconf==3.2.4
+pydantic-settings==2.1.0
+
+# Testing & Quality Assurance (Phase 2)
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+httpx==0.25.2 

@@ -1,0 +1,298 @@
+groups:
+  - name: api_alerts
+    rules:
+      # High API latency
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+        for: 2m
+        labels:
+          severity: warning
+          region: "{{ $labels.region }}"
+        annotations:
+          summary: "High API latency detected"
+          description: "95th percentile latency is {{ $value }}s for {{ $labels.service }} in {{ $labels.region }}"
+
+      # High error rate
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          region: "{{ $labels.region }}"
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for {{ $labels.service }} in {{ $labels.region }}"
+
+      # API server down
+      - alert: APIServerDown
+        expr: up{service="api-server"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          region: "{{ $labels.region }}"
+        annotations:
+          summary: "API server is down"
+          description: "API server {{ $labels.instance }} in {{ $labels.region }} is down"
+
+      # High request rate
+      - alert: HighRequestRate
+        expr: rate(http_requests_total[5m]) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          region: "{{ $labels.region }}"
+        annotations:
+          summary: "High request rate detected"
+          description: "Request rate is {{ $value }} req/s for {{ $labels.service }} in {{ $labels.region }}"
+
+  - name: system_alerts
+    rules:
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}% on {{ $labels.instance }}"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value }}% on {{ $labels.instance }}"
+
+      # High disk usage
+      - alert: HighDiskUsage
+        expr: (node_filesystem_size_bytes - node_filesystem_free_bytes) / node_filesystem_size_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High disk usage"
+          description: "Disk usage is {{ $value }}% on {{ $labels.instance }}"
+
+      # Database connection issues
+      - alert: DatabaseConnectionIssues
+        expr: pg_stat_database_numbackends > 100
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database connections"
+          description: "Database has {{ $value }} active connections"
+
+      # Redis memory usage
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Redis memory usage"
+          description: "Redis memory usage is {{ $value }}%"
+
+  - name: business_alerts
+    rules:
+      # Model prediction accuracy
+      - alert: LowModelAccuracy
+        expr: btcforecast_model_accuracy < 0.7
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low model accuracy"
+          description: "Model accuracy is {{ $value | humanizePercentage }}"
+
+      # Prediction volume
+      - alert: LowPredictionVolume
+        expr: rate(btcforecast_predictions_total[1h]) < 10
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low prediction volume"
+          description: "Prediction rate is {{ $value }} predictions/hour"
+
+      # Data freshness
+      - alert: StaleData
+        expr: time() - btcforecast_last_data_update_timestamp > 3600
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Data is stale"
+          description: "Last data update was {{ $value }} seconds ago"
+
+      # API key usage
+      - alert: HighAPIKeyUsage
+        expr: rate(btcforecast_api_key_requests_total[5m]) > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API key usage"
+          description: "API key {{ $labels.api_key_id }} has {{ $value }} requests/min"
+
+  - name: celery_alerts
+    rules:
+      # Celery worker down
+      - alert: CeleryWorkerDown
+        expr: up{service="celery-worker"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Celery worker is down"
+          description: "Celery worker {{ $labels.instance }} is down"
+
+      # High task queue
+      - alert: HighTaskQueue
+        expr: celery_queue_length > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High task queue length"
+          description: "Queue {{ $labels.queue }} has {{ $value }} pending tasks"
+
+      # Task failure rate
+      - alert: HighTaskFailureRate
+        expr: rate(celery_tasks_failed_total[5m]) / rate(celery_tasks_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High task failure rate"
+          description: "Task failure rate is {{ $value | humanizePercentage }}"
+
+      # Long task duration
+      - alert: LongTaskDuration
+        expr: histogram_quantile(0.95, rate(celery_task_duration_seconds_bucket[5m])) > 300
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Long task duration"
+          description: "95th percentile task duration is {{ $value }}s"
+
+  - name: infrastructure_alerts
+    rules:
+      # Load balancer health
+      - alert: LoadBalancerUnhealthy
+        expr: haproxy_server_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Load balancer backend unhealthy"
+          description: "Backend {{ $labels.backend }} server {{ $labels.server }} is down"
+
+      # Service discovery issues
+      - alert: ConsulUnhealthy
+        expr: up{service="consul"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Consul service discovery is down"
+          description: "Consul service is unavailable"
+
+      # Secrets management issues
+      - alert: VaultUnhealthy
+        expr: up{service="vault"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Vault secrets management is down"
+          description: "Vault service is unavailable"
+
+      # Monitoring stack issues
+      - alert: PrometheusUnhealthy
+        expr: up{job="prometheus"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus monitoring is down"
+          description: "Prometheus is unavailable"
+
+      - alert: GrafanaUnhealthy
+        expr: up{job="grafana"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Grafana dashboard is down"
+          description: "Grafana is unavailable"
+
+  - name: security_alerts
+    rules:
+      # Failed authentication attempts
+      - alert: HighAuthFailures
+        expr: rate(btcforecast_auth_failures_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High authentication failures"
+          description: "{{ $value }} auth failures per minute"
+
+      # Suspicious API usage
+      - alert: SuspiciousAPIUsage
+        expr: rate(btcforecast_api_requests_total{status="429"}[5m]) > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Suspicious API usage detected"
+          description: "Rate limiting triggered {{ $value }} times per minute"
+
+      # SSL certificate expiration
+      - alert: SSLCertExpiringSoon
+        expr: probe_ssl_earliest_cert_expiry - time() < 86400 * 30
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "SSL certificate expiring soon"
+          description: "SSL certificate expires in {{ $value }} seconds"
+
+  - name: region_specific_alerts
+    rules:
+      # Region-specific latency
+      - alert: RegionHighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{region="us-east-1"}[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          region: "us-east-1"
+        annotations:
+          summary: "High latency in US East"
+          description: "US East latency is {{ $value }}s"
+
+      - alert: RegionHighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{region="us-west-2"}[5m])) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          region: "us-west-2"
+        annotations:
+          summary: "High latency in US West"
+          description: "US West latency is {{ $value }}s"
+
+      - alert: RegionHighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{region="eu-west-1"}[5m])) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          region: "eu-west-1"
+        annotations:
+          summary: "High latency in EU West"
+          description: "EU West latency is {{ $value }}s" 

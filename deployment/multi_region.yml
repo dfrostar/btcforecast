@@ -1,0 +1,382 @@
+version: '3.8'
+
+services:
+  # Load Balancer (HAProxy)
+  haproxy:
+    image: haproxy:2.8
+    container_name: btcforecast-haproxy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8404:8404"  # HAProxy stats
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./haproxy/ssl:/etc/ssl/private:ro
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+    depends_on:
+      - api-us-east
+      - api-us-west
+      - api-eu-west
+
+  # API Servers - US East
+  api-us-east:
+    image: btcforecast-api:latest
+    container_name: btcforecast-api-us-east
+    environment:
+      - REGION=us-east-1
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - ENVIRONMENT=production
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # API Servers - US West
+  api-us-west:
+    image: btcforecast-api:latest
+    container_name: btcforecast-api-us-west
+    environment:
+      - REGION=us-west-1
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - ENVIRONMENT=production
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # API Servers - EU West
+  api-eu-west:
+    image: btcforecast-api:latest
+    container_name: btcforecast-api-eu-west
+    environment:
+      - REGION=eu-west-1
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - ENVIRONMENT=production
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Celery Workers - US East
+  celery-worker-us-east:
+    image: btcforecast-api:latest
+    container_name: btcforecast-celery-us-east
+    command: celery -A celery_app worker --loglevel=info --queues=training,data,notifications,analytics,maintenance
+    environment:
+      - REGION=us-east-1
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - ENVIRONMENT=production
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  # Celery Workers - US West
+  celery-worker-us-west:
+    image: btcforecast-api:latest
+    container_name: btcforecast-celery-us-west
+    command: celery -A celery_app worker --loglevel=info --queues=training,data,notifications,analytics,maintenance
+    environment:
+      - REGION=us-west-1
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - ENVIRONMENT=production
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  # Celery Workers - EU West
+  celery-worker-eu-west:
+    image: btcforecast-api:latest
+    container_name: btcforecast-celery-eu-west
+    command: celery -A celery_app worker --loglevel=info --queues=training,data,notifications,analytics,maintenance
+    environment:
+      - REGION=eu-west-1
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - ENVIRONMENT=production
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  # Celery Beat Scheduler
+  celery-beat:
+    image: btcforecast-api:latest
+    container_name: btcforecast-celery-beat
+    command: celery -A celery_app beat --loglevel=info
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - ENVIRONMENT=production
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  # Flower - Celery Monitoring
+  flower:
+    image: mher/flower:2.0.1
+    container_name: btcforecast-flower
+    command: celery flower --broker=${REDIS_URL} --port=5555
+    ports:
+      - "5555:5555"
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  # Redis - Message Broker and Cache
+  redis:
+    image: redis:7-alpine
+    container_name: btcforecast-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL - Primary Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: btcforecast-postgres
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL Replica - US West
+  postgres-replica-us-west:
+    image: postgres:15-alpine
+    container_name: btcforecast-postgres-replica-us-west
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_replica_us_west:/var/lib/postgresql/data
+      - ./database/replica-config:/etc/postgresql/postgresql.conf
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+    depends_on:
+      - postgres
+
+  # PostgreSQL Replica - EU West
+  postgres-replica-eu-west:
+    image: postgres:15-alpine
+    container_name: btcforecast-postgres-replica-eu-west
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_replica_eu_west:/var/lib/postgresql/data
+      - ./database/replica-config:/etc/postgresql/postgresql.conf
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+    depends_on:
+      - postgres
+
+  # Prometheus - Metrics Collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: btcforecast-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+
+  # Grafana - Monitoring Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    container_name: btcforecast-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+  # Jaeger - Distributed Tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: btcforecast-jaeger
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+
+  # Consul - Service Discovery
+  consul:
+    image: consul:latest
+    container_name: btcforecast-consul
+    ports:
+      - "8500:8500"
+    command: consul agent -server -bootstrap-expect=1 -ui -client=0.0.0.0
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+
+  # Vault - Secrets Management
+  vault:
+    image: vault:latest
+    container_name: btcforecast-vault
+    ports:
+      - "8200:8200"
+    environment:
+      - VAULT_DEV_ROOT_TOKEN_ID=${VAULT_ROOT_TOKEN}
+      - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+
+  # Nginx - Static File Server
+  nginx:
+    image: nginx:alpine
+    container_name: btcforecast-nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./static:/usr/share/nginx/html:ro
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+
+  # Elasticsearch - Log Aggregation
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: btcforecast-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+
+  # Kibana - Log Visualization
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: btcforecast-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+    depends_on:
+      - elasticsearch
+
+  # Filebeat - Log Collection
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.11.0
+    container_name: btcforecast-filebeat
+    volumes:
+      - ./logs:/var/log/btcforecast:ro
+      - ./monitoring/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+    networks:
+      - btcforecast-network
+    restart: unless-stopped
+    depends_on:
+      - elasticsearch
+
+volumes:
+  redis_data:
+    driver: local
+  postgres_data:
+    driver: local
+  postgres_replica_us_west:
+    driver: local
+  postgres_replica_eu_west:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+
+networks:
+  btcforecast-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16 

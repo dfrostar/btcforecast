@@ -49,6 +49,11 @@ from api.websocket import (
 )
 from data.realtime_data import start_realtime_data, stop_realtime_data
 
+# Competitive Edge Modules (Phase 1 Implementation)
+from api.social import router as social_router
+from api.portfolio import router as portfolio_router
+from api.subscriptions import router as subscriptions_router
+
 # --- Logging Configuration ---
 logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(name)s:%(message)s')
 logger = logging.getLogger("api.main")
@@ -123,9 +128,9 @@ class MonitoringMiddleware(BaseHTTPMiddleware):
 
 # --- FastAPI App Initialization ---
 app = FastAPI(
-    title="Bitcoin Forecasting API v3.0",
-    description="Advanced API for recursive Bitcoin price forecasting with authentication, rate limiting, and comprehensive monitoring.",
-    version="3.0",
+    title="Bitcoin Forecasting API v4.0",
+    description="Advanced API for recursive Bitcoin price forecasting with authentication, rate limiting, comprehensive monitoring, and competitive edge features including social features, portfolio management, and subscription management.",
+    version="4.0",
     docs_url="/docs" if config.enable_docs else None,
     redoc_url="/redoc" if config.enable_docs else None
 )
@@ -140,6 +145,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include competitive edge routers
+app.include_router(social_router)
+app.include_router(portfolio_router)
+app.include_router(subscriptions_router)
 
 # --- Global Variables ---
 model = None
@@ -782,6 +792,29 @@ async def get_realtime_prices(
 ):
     """Get current real-time prices for specified symbols."""
     try:
+        # 1. Demo mode: return mock/sample data
+        if current_user.username == "demo":
+            symbol_list = symbols.split(',') if symbols else ["btcusdt", "ethusdt", "adausdt", "dotusdt", "solusdt"]
+            prices = {s: {
+                "symbol": s,
+                "price": 10000 + i * 1000,
+                "volume": 1000000 + i * 10000,
+                "timestamp": datetime.utcnow().isoformat(),
+                "exchange": "DemoExchange"
+            } for i, s in enumerate(symbol_list)}
+            return {
+                "prices": prices,
+                "timestamp": datetime.utcnow().isoformat(),
+                "total_symbols": len(prices),
+                "demo": True
+            }
+        # 2. Not premium: return clear error
+        if current_user.role != "premium":
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail="Real-time prices require a premium subscription."
+            )
+        # 3. Premium: return real data
         symbol_list = symbols.split(',') if symbols else None
         prices = await get_current_prices(symbol_list)
         return prices
